@@ -3,6 +3,8 @@
 #include<thread>
 #include "Board.h"
 
+// test
+
 using namespace std;
 
 enum direction keyBuff = _right;
