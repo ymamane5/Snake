@@ -1,5 +1,5 @@
 #include <iostream>
-#include<thread>
+#include <thread>
 #include "MySnake.h"
 #include "Board.h"
 #include "Point.h"
@@ -10,9 +10,8 @@ int main()
 {
 	Board board;
 
-	board.draw();
 	board.startGame();
-	system("pause");
+
 
 	return 0;
 }

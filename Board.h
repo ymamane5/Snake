@@ -4,22 +4,22 @@
 #include "Point.h"
 #include "MySnake.h"
 
-int const ROWS = 10, COL = 10;
-
 class Board
 {
 public:
-	Board();  // 1 - wall;  2 - snake;  3 - food;
-	~Board() {}
+	Board();
+	~Board();
 
 	void startGame();
+	void updateSnake();
 	void generateFood();
+	void drawAll();
 	void draw();
 
 private:
-	char myBoard[ROWS + 2][COL + 2];
 	MySnake snake;
-	static Point snakeStart;
+	char** myBoard;
+	int width, height;
 	unsigned int score;
 	Point food;
 };

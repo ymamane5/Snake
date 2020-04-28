@@ -1,91 +1,176 @@
-#include<iostream>
-#include<windows.h>
-#include<thread>
+#include <iostream>
+#include <thread>
+#include <ncurses.h>
+#include <unistd.h>
 #include "Board.h"
-
-// test
+#include "MySnake.h"
 
 using namespace std;
 
-enum direction keyBuff = _right;
-Point Board::snakeStart = Point(4, 4);
+enum direction keyBuff = _right;  //default
+int game_over = 0;
+Point lastTail;
 
 Board::Board()
 {
-	for (int i = 0; i <= ROWS + 1; i++)
+	initscr();
+	noecho();
+	getmaxyx(stdscr, height, width);
+
+	myBoard = new char*[height];
+	for(int i = 0; i < height; i++)
+		myBoard[i] = new char[width];
+
+	//add wall
+	for (int i = 0; i < height; i++)
 	{
-		for (int j = 0; j <= COL + 1; j++)
+		for (int j = 0; j < width; j++)
 		{
-			if (i == 0 || i == ROWS + 1 || j == 0 || j == COL + 1)
+			if (i == 0 || i == height - 1 || j == 0 || j == width - 1)
 				myBoard[i][j] = '#'; // wall
-			else if (i == snakeStart.getX() && j <= snakeStart.getY() && j >= 1)
-				myBoard[i][j] = '*'; // snake
 			else
 				myBoard[i][j] = ' ';
 		}
 	}
+	//add snake
+	for(int i = 0; i < snake.getSize(); i++)
+		myBoard[snake.getPos(i).getX()][snake.getPos(i).getY()] = '*';
 	
+	//add food
+	// ...
+
 	score = 0;
 }
 
-void Board::draw()
+Board::~Board()
+{
+	for(int i = 0; i < height; i++)
+		delete(myBoard[i]);
+
+	delete myBoard;
+}
+
+void Board::drawAll()
 {	
-	//add snake
-	for(int i = 0; i < 4; i++)
-		myBoard[snake.getPos(i).getX()][snake.getPos(i).getY()] = '*';
-	
-	for (int i = 0; i <= ROWS + 1; i++)
-	{
-		for (int j = 0; j <= COL + 1; j++)
-		{
-			cout << myBoard[i][j];
-		}
-		cout << endl;
+	char c;
+	/*
+	move(height/2, width/2);
+	c = getch();
+	while(c != 27){
+		printw("%d", c);
+		refresh();
+		move(height/2, width/2);
+		c = getch();
 	}
+	*/
+
+	
+	move(0, 0);
+/*
+	//add snake
+	for(int i = 0; i < snake.getSize(); i++)
+		myBoard[snake.getPos(i).getX()][snake.getPos(i).getY()] = '*';
+*/
+	//draw
+	for (int i = 0; i < height; i++)
+	{
+		for (int j = 0; j < width; j++)
+		{
+			printw("%c", myBoard[i][j]);
+		}
+		//printw("\n");
+	}
+	refresh();
+	//getch();
+	
+}
+
+void Board::updateSnake()
+{
+	char c;
+
+	//check head
+	if(myBoard[snake.getHead().getX()][snake.getHead().getY()] != ' ')
+	{
+		//printf("head pos got to: %c\n", myBoard[snake.getHead().getX()][snake.getHead().getY()]);
+		game_over = 1;
+	}
+
+	for(int i = 0; i < snake.getSize(); i++)
+	{
+		myBoard[snake.getPos(i).getX()][snake.getPos(i).getY()] = '*';
+		move(snake.getPos(i).getX(), snake.getPos(i).getY());
+		printw("*");
+	}
+	move(lastTail.getX(), lastTail.getY());
+	printw(" ");
+	myBoard[lastTail.getX()][lastTail.getY()] = ' ';
+	c = wgetch(stdscr);
+	//move(height, 0);
+	//printw("%c",c);
+	refresh();
+}
+
+void Board::draw()
+{
+		
 }
 
 void checkKeyPress()
 {
 	//cout << "inside checkKeyPress" << endl;
+	nodelay(stdscr, TRUE);
+	char c;
 
 	while (keyBuff != exitGame)
 	{
-		if (GetKeyState(VK_ESCAPE) & 0x8000)
+		c = getch();
+
+		if (c == 27)
 			keyBuff = exitGame;
-		else if (GetKeyState(VK_LEFT) & 0x8000)
-			keyBuff = _left;
-		else if (GetKeyState(VK_RIGHT) & 0x8000)
+		else if (c == 'a' && keyBuff != _right)
+				keyBuff = _left;
+		else if (c == 'd' && keyBuff != _left)
 			keyBuff = _right;
-		else if (GetKeyState(VK_UP) & 0x8000)
+		else if (c == 'w' && keyBuff != _down)
 			keyBuff = _up;
-		else if (GetKeyState(VK_DOWN) & 0x8000)
+		else if (c == 's' && keyBuff != _up)
 			keyBuff = _down;
 	}
+	
 }
-/*
-void Board::goUp()
-{
-	cout << "inside goUp" << endl;
-	myBoard[snake.getTail().getX()][snake.getTail().getY()] = ' ';
-	myBoard[snake.getHead().getX() - 1][snake.getHead().getY()] = '*';
-	draw();
-
-	snake.setDir(_up);
-}
-*/
 
 void Board::startGame()
 {
-	//int i = 0;
+	drawAll();
+
 	thread keyboard(checkKeyPress);
 	keyboard.detach();
 
-	while(keyBuff != exitGame)  
+	while(keyBuff != exitGame && game_over == 0)  
 	{
-		//cout << "keybuff = " << keyBuff << endl;
-		//if (keyBuff == _UP)
-			//snake.goUp();
+		lastTail = snake.getTail();
+
+		if (keyBuff == _up)
+			snake.goUp();
+		else if (keyBuff == _down)
+			snake.goDown();
+		else if (keyBuff == _right)
+			snake.goRight();
+		else if (keyBuff == _left)
+			snake.goLeft();
 			
-		Sleep(1000);
+		updateSnake();
+		// generateFood();
+		usleep(100000);
 	}
+
+	if(game_over == 1)
+	{
+		move(height/2, width/2 - 5);
+		printw("Game Over!");
+		sleep(2);
+	}
+	
+	endwin();
 }
