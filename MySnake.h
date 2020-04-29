@@ -26,10 +26,10 @@ public:
 	void setDir(enum direction direction) { d = direction; }
 	unsigned int getSize() { return v.size(); }
 
-	void goUp();
-	void goDown();
-	void goRight();
-	void goLeft();
+	void goUp(int);
+	void goDown(int);
+	void goRight(int);
+	void goLeft(int);
 	
 private:
 	vector<Point> v;

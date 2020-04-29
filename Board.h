@@ -14,7 +14,12 @@ public:
 	void updateSnake();
 	void generateFood();
 	void drawAll();
-	void draw();
+	void gameOver();
+	bool foodIsOk(int row, int col);
+	unsigned int getScore() { return score; }
+	void incScore() { score += 10; }
+
+	//void getKeyPress();
 
 private:
 	MySnake snake;
@@ -22,6 +27,8 @@ private:
 	int width, height;
 	unsigned int score;
 	Point food;
+	Point lastTail;
+	int incSnake;
 };
 
 #endif // !BOARD

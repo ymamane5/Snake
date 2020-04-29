@@ -2,6 +2,7 @@
 #include <thread>
 #include <ncurses.h>
 #include <unistd.h>
+#include <cstdlib>  // for srand
 #include "Board.h"
 #include "MySnake.h"
 
@@ -9,7 +10,6 @@ using namespace std;
 
 enum direction keyBuff = _right;  //default
 int game_over = 0;
-Point lastTail;
 
 Board::Board()
 {
@@ -26,12 +26,13 @@ Board::Board()
 	{
 		for (int j = 0; j < width; j++)
 		{
-			if (i == 0 || i == height - 1 || j == 0 || j == width - 1)
+			if (i == 1 || i == height - 1 || j == 0 || j == width - 1)
 				myBoard[i][j] = '#'; // wall
 			else
 				myBoard[i][j] = ' ';
 		}
 	}
+	myBoard[0][width - 1] = ' ';
 	//add snake
 	for(int i = 0; i < snake.getSize(); i++)
 		myBoard[snake.getPos(i).getX()][snake.getPos(i).getY()] = '*';
@@ -40,6 +41,7 @@ Board::Board()
 	// ...
 
 	score = 0;
+	incSnake = 0;
 }
 
 Board::~Board()
@@ -53,49 +55,36 @@ Board::~Board()
 void Board::drawAll()
 {	
 	char c;
-	/*
-	move(height/2, width/2);
-	c = getch();
-	while(c != 27){
-		printw("%d", c);
-		refresh();
-		move(height/2, width/2);
-		c = getch();
-	}
-	*/
-
-	
 	move(0, 0);
-/*
-	//add snake
-	for(int i = 0; i < snake.getSize(); i++)
-		myBoard[snake.getPos(i).getX()][snake.getPos(i).getY()] = '*';
-*/
-	//draw
+
+	//draw board
 	for (int i = 0; i < height; i++)
 	{
 		for (int j = 0; j < width; j++)
 		{
 			printw("%c", myBoard[i][j]);
 		}
-		//printw("\n");
 	}
+
 	refresh();
-	//getch();
-	
 }
 
 void Board::updateSnake()
 {
-	char c;
-
 	//check head
 	if(myBoard[snake.getHead().getX()][snake.getHead().getY()] != ' ')
 	{
-		//printf("head pos got to: %c\n", myBoard[snake.getHead().getX()][snake.getHead().getY()]);
-		game_over = 1;
+		if(myBoard[snake.getHead().getX()][snake.getHead().getY()] == '$'){
+			incSnake += 2;
+			score += 10;
+			generateFood();
+		}
+		else {
+			game_over = 1;
+			//printf("head pos got to: %c\n", myBoard[snake.getHead().getX()][snake.getHead().getY()]);
+		}
 	}
-
+	// print snake
 	for(int i = 0; i < snake.getSize(); i++)
 	{
 		myBoard[snake.getPos(i).getX()][snake.getPos(i).getY()] = '*';
@@ -105,18 +94,11 @@ void Board::updateSnake()
 	move(lastTail.getX(), lastTail.getY());
 	printw(" ");
 	myBoard[lastTail.getX()][lastTail.getY()] = ' ';
-	c = wgetch(stdscr);
-	//move(height, 0);
-	//printw("%c",c);
+	//c = wgetch(stdscr);
 	refresh();
 }
 
-void Board::draw()
-{
-		
-}
-
-void checkKeyPress()
+void getKeyPress(MySnake* snake)
 {
 	//cout << "inside checkKeyPress" << endl;
 	nodelay(stdscr, TRUE);
@@ -128,13 +110,13 @@ void checkKeyPress()
 
 		if (c == 27)
 			keyBuff = exitGame;
-		else if (c == 'a' && keyBuff != _right)
+		else if (c == 'a' && snake->getDir() != _right)
 				keyBuff = _left;
-		else if (c == 'd' && keyBuff != _left)
+		else if (c == 'd' && snake->getDir() != _left)
 			keyBuff = _right;
-		else if (c == 'w' && keyBuff != _down)
+		else if (c == 'w' && snake->getDir() != _down)
 			keyBuff = _up;
-		else if (c == 's' && keyBuff != _up)
+		else if (c == 's' && snake->getDir() != _up)
 			keyBuff = _down;
 	}
 	
@@ -143,34 +125,75 @@ void checkKeyPress()
 void Board::startGame()
 {
 	drawAll();
+	getch();
+	generateFood();
 
-	thread keyboard(checkKeyPress);
+	thread keyboard(getKeyPress, &snake);
 	keyboard.detach();
 
 	while(keyBuff != exitGame && game_over == 0)  
 	{
 		lastTail = snake.getTail();
 
-		if (keyBuff == _up)
-			snake.goUp();
-		else if (keyBuff == _down)
-			snake.goDown();
-		else if (keyBuff == _right)
-			snake.goRight();
-		else if (keyBuff == _left)
-			snake.goLeft();
-			
+		if (keyBuff == _up){
+			snake.goUp(incSnake); snake.setDir(_up);
+		}
+		else if (keyBuff == _down){
+			snake.goDown(incSnake); snake.setDir(_down);
+		}
+		else if (keyBuff == _right){
+			snake.goRight(incSnake); snake.setDir(_right);
+		}
+		else if (keyBuff == _left){
+			snake.goLeft(incSnake); snake.setDir(_left);
+		}
+
 		updateSnake();
-		// generateFood();
+		move(0,0);
+		printw("score: %d", score);
+		refresh();
+
+		if(incSnake > 0)
+			incSnake--;
+
 		usleep(100000);
 	}
 
 	if(game_over == 1)
 	{
-		move(height/2, width/2 - 5);
-		printw("Game Over!");
-		sleep(2);
+		gameOver();
 	}
 	
 	endwin();
+}
+
+void Board::generateFood()
+{
+	int row, col;
+
+	do {
+	row = (rand() % (height - 3)) + 2;
+	col = (rand() % (width - 2)) + 1;
+	} while(!foodIsOk(row, col));
+
+	myBoard[row][col] = '$';
+	move(row, col);
+	printw("$");
+	refresh();
+}
+
+bool Board::foodIsOk(int row, int col)
+{
+	for(int i = 0; i < snake.getSize(); i++)
+		if(row = snake.getPos(i).getX() && col == snake.getPos(i).getY())
+			return false;
+
+	return true;
+}
+
+void Board::gameOver()
+{
+	move(height/2, width/2 - 5);
+	printw("Game Over!  ");
+	sleep(2);
 }
